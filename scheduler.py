@@ -25,9 +25,9 @@ async def check_and_send_messages(bot: Bot):
     - у пользователя в users.timezone лежит строка вида '+2', '+3', '+4' и т.д.;
     - пользователю шлём тогда, когда в его локальной зоне наступает то же самое "часы:минуты, дата".
 
-    Для этого считаем, что локальное время сервера тоже МСК.
-    Тогда момент отправки для конкретного пользователя по серверному времени:
-        send_time_for_user_msk = base_msk_time + (MSK_OFFSET - user_offset) часов.
+    ВАЖНО: VPS обычно живёт в UTC, поэтому:
+    - now_msk считаем как datetime.utcnow() + 3 часа;
+    - сравниваем всё именно в МСК.
     """
 
     messages = await get_all_messages()
@@ -38,7 +38,9 @@ async def check_and_send_messages(bot: Bot):
     if not users:
         return
 
-    now_msk = datetime.now()
+    # VPS, скорее всего, в UTC — переводим в МСК вручную
+    now_utc = datetime.utcnow()
+    now_msk = now_utc + timedelta(hours=MSK_OFFSET)
 
     for msg in messages:
         text = msg["message_text"]
@@ -60,6 +62,11 @@ async def check_and_send_messages(bot: Bot):
                 hours=(MSK_OFFSET - user_offset)
             )
 
+            # если дата рассылки уже прошла (вчера и раньше) — не догоняем старыми сообщениями
+            if send_time_for_user_msk.date() < now_msk.date():
+                continue
+
+            # ещё рано для этого пользователя
             if now_msk < send_time_for_user_msk:
                 continue
 
