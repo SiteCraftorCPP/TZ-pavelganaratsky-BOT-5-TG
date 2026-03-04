@@ -2,8 +2,9 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
+from config import ADMIN_IDS
 from database import add_user, get_setting
-from keyboards import get_timezone_keyboard
+from keyboards import get_timezone_keyboard, get_timezone_keyboard_for_admin
 
 router = Router()
 
@@ -24,10 +25,13 @@ async def cmd_start(message: Message):
     text = setting["text"] if setting and setting["text"] else DEFAULT_WELCOME_TEXT
     photo_id = setting["photo_file_id"] if setting else None
 
+    is_admin = message.from_user.id in ADMIN_IDS
+    kb = get_timezone_keyboard_for_admin() if is_admin else get_timezone_keyboard()
+
     if photo_id:
-        await message.answer_photo(photo=photo_id, caption=text, reply_markup=get_timezone_keyboard())
+        await message.answer_photo(photo=photo_id, caption=text, reply_markup=kb)
     else:
-        await message.answer(text, reply_markup=get_timezone_keyboard())
+        await message.answer(text, reply_markup=kb)
 
 
 @router.callback_query(F.data.startswith("tz_"))
