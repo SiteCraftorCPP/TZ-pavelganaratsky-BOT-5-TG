@@ -191,16 +191,8 @@ async def admin_edit_welcome(callback: CallbackQuery, state: FSMContext):
 
     setting = await get_setting("welcome")
     current_text = setting["text"] if setting and setting["text"] else "Текст по умолчанию."
-    has_photo = bool(setting and setting["photo_file_id"])
 
-    preview = (
-        "Приветствие:\n\n"
-        f"{current_text}\n\n"
-        f"Картинка: {'есть' if has_photo else 'нет'}\n\n"
-        "Отправьте НОВЫЙ текст приветствия (или '-' чтобы оставить текущий):"
-    )
-
-    await callback.message.edit_text(preview, reply_markup=get_back_keyboard())
+    await callback.message.edit_text("Отправьте текст:", reply_markup=get_back_keyboard())
     await state.update_data(
         welcome_text=current_text,
         welcome_photo=setting["photo_file_id"] if setting else None,
@@ -223,8 +215,7 @@ async def admin_welcome_text(message: Message, state: FSMContext):
     await state.update_data(welcome_text=new_text)
 
     await message.answer(
-        "Отправьте КАРТИНКУ для приветствия (как фото) "
-        "или '-' чтобы оставить текущую / без картинки:",
+        "Отправьте фото или нажмите '-':",
         reply_markup=get_back_keyboard(),
     )
     await state.set_state(AdminStates.editing_welcome_photo)
@@ -271,17 +262,8 @@ async def admin_edit_after_tz(callback: CallbackQuery, state: FSMContext):
         if setting and setting["text"]
         else "Часовой пояс {tz} установлен."
     )
-    has_photo = bool(setting and setting["photo_file_id"])
 
-    info = (
-        "Текст после выбора пояса:\n\n"
-        f"{current_text}\n\n"
-        "Можно использовать плейсхолдер {tz} для подстановки значения пояса.\n\n"
-        f"Картинка: {'есть' if has_photo else 'нет'}\n\n"
-        "Отправьте НОВЫЙ текст (или '-' чтобы оставить текущий):"
-    )
-
-    await callback.message.edit_text(info, reply_markup=get_back_keyboard())
+    await callback.message.edit_text("Отправьте текст:", reply_markup=get_back_keyboard())
     await state.update_data(
         after_tz_text=current_text,
         after_tz_photo=setting["photo_file_id"] if setting else None,
@@ -304,8 +286,7 @@ async def admin_after_tz_text(message: Message, state: FSMContext):
     await state.update_data(after_tz_text=new_text)
 
     await message.answer(
-        "Отправьте КАРТИНКУ для ответа после выбора пояса (как фото) "
-        "или '-' чтобы оставить текущую / без картинки:",
+        "Отправьте фото или нажмите '-':",
         reply_markup=get_back_keyboard(),
     )
     await state.set_state(AdminStates.editing_after_tz_photo)
