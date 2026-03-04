@@ -277,12 +277,9 @@ async def admin_edit_after_tz(callback: CallbackQuery, state: FSMContext):
         "Текст после выбора пояса:\n\n"
         f"{current_text}\n\n"
         "Можно использовать плейсхолдер {tz} для подстановки значения пояса.\n\n"
-        f"Картинка: {'есть' если has_photo еще 'нет'}\n\n"
+        f"Картинка: {'есть' if has_photo else 'нет'}\n\n"
         "Отправьте НОВЫЙ текст (или '-' чтобы оставить текущий):"
     )
-
-    # fix russian string concatenation
-    info = info.replace("если has_photo еще", "если есть" if has_photo else "если нет")
 
     await callback.message.edit_text(info, reply_markup=get_back_keyboard())
     await state.update_data(
