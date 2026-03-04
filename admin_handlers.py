@@ -37,6 +37,7 @@ async def _send_admin_menu(message_or_callback):
 
 
 @router.message(Command("admin"))
+@router.message(F.text == "Админ-панель")
 async def cmd_admin(message: Message):
     if not is_admin(message.from_user.id):
         return

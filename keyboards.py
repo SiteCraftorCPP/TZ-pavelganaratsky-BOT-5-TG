@@ -16,7 +16,7 @@ def get_timezone_keyboard():
 def get_admin_reply_keyboard():
     # Кнопка над клавиатурой, которая шлёт /admin
     return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="/admin")]],
+        keyboard=[[KeyboardButton(text="Админ-панель")]],
         resize_keyboard=True,
         one_time_keyboard=False,
     )
