@@ -14,3 +14,9 @@ class AdminStates(StatesGroup):
     editing_text = State()
     editing_date = State()
     editing_time = State()
+
+    # Greeting / timezone texts
+    editing_welcome_text = State()
+    editing_welcome_photo = State()
+    editing_after_tz_text = State()
+    editing_after_tz_photo = State()

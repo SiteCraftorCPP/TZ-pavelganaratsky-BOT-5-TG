@@ -2,6 +2,7 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
+
 from config import ADMIN_IDS
 from keyboards import get_admin_keyboard, get_back_keyboard
 from states import AdminStates
@@ -12,6 +13,8 @@ from database import (
     delete_message,
     delete_all_messages,
     get_message,
+    get_setting,
+    set_setting,
 )
 from datetime import datetime
 
@@ -179,6 +182,166 @@ async def admin_back(callback: CallbackQuery, state: FSMContext):
     # Для всех прочих случаев — просто назад в меню
     await state.clear()
     await _send_admin_menu(callback)
+
+
+@router.callback_query(F.data == "admin_edit_welcome")
+async def admin_edit_welcome(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        return
+
+    setting = await get_setting("welcome")
+    current_text = setting["text"] if setting and setting["text"] else "Текст по умолчанию."
+    has_photo = bool(setting and setting["photo_file_id"])
+
+    preview = (
+        "Приветствие:\n\n"
+        f"{current_text}\n\n"
+        f"Картинка: {'есть' if has_photo else 'нет'}\n\n"
+        "Отправьте НОВЫЙ текст приветствия (или '-' чтобы оставить текущий):"
+    )
+
+    await callback.message.edit_text(preview, reply_markup=get_back_keyboard())
+    await state.update_data(
+        welcome_text=current_text,
+        welcome_photo=setting["photo_file_id"] if setting else None,
+    )
+    await state.set_state(AdminStates.editing_welcome_text)
+
+
+@router.message(AdminStates.editing_welcome_text)
+async def admin_welcome_text(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+
+    data = await state.get_data()
+    old_text = data.get("welcome_text")
+
+    new_text = message.text
+    if new_text.strip() == "-":
+        new_text = old_text
+
+    await state.update_data(welcome_text=new_text)
+
+    await message.answer(
+        "Отправьте КАРТИНКУ для приветствия (как фото) "
+        "или '-' чтобы оставить текущую / без картинки:",
+        reply_markup=get_back_keyboard(),
+    )
+    await state.set_state(AdminStates.editing_welcome_photo)
+
+
+@router.message(AdminStates.editing_welcome_photo)
+async def admin_welcome_photo(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+
+    data = await state.get_data()
+    text = data.get("welcome_text")
+    old_photo = data.get("welcome_photo")
+
+    photo_id = old_photo
+    if message.photo:
+        photo_id = message.photo[-1].file_id
+    elif message.text and message.text.strip() == "-":
+        photo_id = old_photo
+    else:
+        await message.answer(
+            "Пришлите фото или '-' чтобы оставить текущее значение.",
+            reply_markup=get_back_keyboard(),
+        )
+        return
+
+    await set_setting("welcome", text, photo_id)
+    await state.clear()
+
+    await message.answer(
+        "Приветствие обновлено.",
+        reply_markup=get_admin_keyboard(),
+    )
+
+
+@router.callback_query(F.data == "admin_edit_after_tz")
+async def admin_edit_after_tz(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        return
+
+    setting = await get_setting("after_timezone")
+    current_text = (
+        setting["text"]
+        if setting and setting["text"]
+        else "Часовой пояс {tz} установлен."
+    )
+    has_photo = bool(setting and setting["photo_file_id"])
+
+    info = (
+        "Текст после выбора пояса:\n\n"
+        f"{current_text}\n\n"
+        "Можно использовать плейсхолдер {tz} для подстановки значения пояса.\n\n"
+        f"Картинка: {'есть' если has_photo еще 'нет'}\n\n"
+        "Отправьте НОВЫЙ текст (или '-' чтобы оставить текущий):"
+    )
+
+    # fix russian string concatenation
+    info = info.replace("если has_photo еще", "если есть" if has_photo else "если нет")
+
+    await callback.message.edit_text(info, reply_markup=get_back_keyboard())
+    await state.update_data(
+        after_tz_text=current_text,
+        after_tz_photo=setting["photo_file_id"] if setting else None,
+    )
+    await state.set_state(AdminStates.editing_after_tz_text)
+
+
+@router.message(AdminStates.editing_after_tz_text)
+async def admin_after_tz_text(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+
+    data = await state.get_data()
+    old_text = data.get("after_tz_text")
+
+    new_text = message.text
+    if new_text.strip() == "-":
+        new_text = old_text
+
+    await state.update_data(after_tz_text=new_text)
+
+    await message.answer(
+        "Отправьте КАРТИНКУ для ответа после выбора пояса (как фото) "
+        "или '-' чтобы оставить текущую / без картинки:",
+        reply_markup=get_back_keyboard(),
+    )
+    await state.set_state(AdminStates.editing_after_tz_photo)
+
+
+@router.message(AdminStates.editing_after_tz_photo)
+async def admin_after_tz_photo(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+
+    data = await state.get_data()
+    text = data.get("after_tz_text")
+    old_photo = data.get("after_tz_photo")
+
+    photo_id = old_photo
+    if message.photo:
+        photo_id = message.photo[-1].file_id
+    elif message.text and message.text.strip() == "-":
+        photo_id = old_photo
+    else:
+        await message.answer(
+            "Пришлите фото или '-' чтобы оставить текущее значение.",
+            reply_markup=get_back_keyboard(),
+        )
+        return
+
+    await set_setting("after_timezone", text, photo_id)
+    await state.clear()
+
+    await message.answer(
+        "Текст после выбора пояса обновлён.",
+        reply_markup=get_admin_keyboard(),
+    )
 
 
 @router.callback_query(F.data == "admin_list")

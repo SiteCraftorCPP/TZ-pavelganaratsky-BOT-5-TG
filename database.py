@@ -36,6 +36,15 @@ async def init_db():
             )
         """
         )
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                text TEXT,
+                photo_file_id TEXT
+            )
+        """
+        )
         await db.commit()
 
 
@@ -160,3 +169,27 @@ async def seed_march_if_needed():
         dt_str = f"{current_year}.{date_str} {time_str}"
         dt = datetime.datetime.strptime(dt_str, "%Y.%d.%m %H:%M")
         await add_message(text, dt)
+
+
+async def get_setting(key: str):
+    async with aiosqlite.connect(DB_NAME) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT key, text, photo_file_id FROM settings WHERE key = ?", (key,)
+        ) as cursor:
+            return await cursor.fetchone()
+
+
+async def set_setting(key: str, text: str | None, photo_file_id: str | None):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute(
+            """
+            INSERT INTO settings (key, text, photo_file_id)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                text = excluded.text,
+                photo_file_id = excluded.photo_file_id
+        """,
+            (key, text, photo_file_id),
+        )
+        await db.commit()
