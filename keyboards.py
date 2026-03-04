@@ -1,4 +1,4 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 
 def get_timezone_keyboard():
@@ -13,17 +13,13 @@ def get_timezone_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def get_timezone_keyboard_for_admin():
-    buttons = [
-        [InlineKeyboardButton(text="+2 Киев, Таллинн", callback_data="tz_+2")],
-        [InlineKeyboardButton(text="+3 Москва, Анкара", callback_data="tz_+3")],
-        [InlineKeyboardButton(text="+4 Баку, Тбилиси", callback_data="tz_+4")],
-        [InlineKeyboardButton(text="+5 Екатеринбург, Ташкент", callback_data="tz_+5")],
-        [InlineKeyboardButton(text="+6 Алматы, Бишкек", callback_data="tz_+6")],
-        [InlineKeyboardButton(text="+7 Красноярск, Ханой", callback_data="tz_+7")],
-        [InlineKeyboardButton(text="Админка", callback_data="admin_menu")],
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+def get_admin_reply_keyboard():
+    # Кнопка над клавиатурой, которая шлёт /admin
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="/admin")]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+    )
 
 
 def get_admin_keyboard():

@@ -4,7 +4,7 @@ from aiogram.types import Message, CallbackQuery
 
 from config import ADMIN_IDS
 from database import add_user, get_setting
-from keyboards import get_timezone_keyboard, get_timezone_keyboard_for_admin
+from keyboards import get_timezone_keyboard, get_admin_reply_keyboard
 
 router = Router()
 
@@ -25,13 +25,15 @@ async def cmd_start(message: Message):
     text = setting["text"] if setting and setting["text"] else DEFAULT_WELCOME_TEXT
     photo_id = setting["photo_file_id"] if setting else None
 
-    is_admin = message.from_user.id in ADMIN_IDS
-    kb = get_timezone_keyboard_for_admin() if is_admin else get_timezone_keyboard()
-
+    # сначала сообщение с выбором пояса (инлайн-кнопки)
     if photo_id:
-        await message.answer_photo(photo=photo_id, caption=text, reply_markup=kb)
+        await message.answer_photo(photo=photo_id, caption=text, reply_markup=get_timezone_keyboard())
     else:
-        await message.answer(text, reply_markup=kb)
+        await message.answer(text, reply_markup=get_timezone_keyboard())
+
+    # затем, если это админ — включаем reply-клавиатуру с кнопкой /admin
+    if message.from_user.id in ADMIN_IDS:
+        await message.answer("Админ-клавиатура активна.", reply_markup=get_admin_reply_keyboard())
 
 
 @router.callback_query(F.data.startswith("tz_"))
