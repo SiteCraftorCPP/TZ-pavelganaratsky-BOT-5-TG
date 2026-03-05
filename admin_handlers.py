@@ -77,11 +77,14 @@ async def process_approve_request(callback: CallbackQuery):
     lang_str = (user_lang or "не выбран").upper()
 
     try:
-        await callback.bot.send_message(
-            chat_id=user_id,
-            text="Выбор часового пояса:",
-            reply_markup=get_timezone_keyboard(),
-        )
+        if user_lang == "en":
+            title = "Choose your time zone:"
+            kb = get_timezone_keyboard("en")
+        else:
+            title = "Выбор часового пояса:"
+            kb = get_timezone_keyboard("ru")
+
+        await callback.bot.send_message(chat_id=user_id, text=title, reply_markup=kb)
     except Exception:
         await callback.answer("Не удалось отправить пользователю.", show_alert=True)
         return

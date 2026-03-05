@@ -7,16 +7,27 @@ def get_welcome_keyboard():
     )
 
 
-def get_timezone_keyboard():
-    buttons = [
-        [InlineKeyboardButton(text="+1 Берлин, Монтенегро", callback_data="tz_+1")],
-        [InlineKeyboardButton(text="+2 Киев, Таллинн", callback_data="tz_+2")],
-        [InlineKeyboardButton(text="+3 Москва, Анкара", callback_data="tz_+3")],
-        [InlineKeyboardButton(text="+4 Баку, Тбилиси", callback_data="tz_+4")],
-        [InlineKeyboardButton(text="+5 Екатеринбург, Ташкент", callback_data="tz_+5")],
-        [InlineKeyboardButton(text="+6 Алматы, Бишкек", callback_data="tz_+6")],
-        [InlineKeyboardButton(text="+7 Красноярск, Ханой", callback_data="tz_+7")],
-    ]
+def get_timezone_keyboard(lang: str = "ru"):
+    if lang == "en":
+        buttons = [
+            [InlineKeyboardButton(text="+1 Berlin, Montenegro", callback_data="tz_+1")],
+            [InlineKeyboardButton(text="+2 Kyiv, Tallinn", callback_data="tz_+2")],
+            [InlineKeyboardButton(text="+3 Moscow, Ankara", callback_data="tz_+3")],
+            [InlineKeyboardButton(text="+4 Baku, Tbilisi", callback_data="tz_+4")],
+            [InlineKeyboardButton(text="+5 Yekaterinburg, Tashkent", callback_data="tz_+5")],
+            [InlineKeyboardButton(text="+6 Almaty, Bishkek", callback_data="tz_+6")],
+            [InlineKeyboardButton(text="+7 Krasnoyarsk, Hanoi", callback_data="tz_+7")],
+        ]
+    else:
+        buttons = [
+            [InlineKeyboardButton(text="+1 Берлин, Монтенегро", callback_data="tz_+1")],
+            [InlineKeyboardButton(text="+2 Киев, Таллинн", callback_data="tz_+2")],
+            [InlineKeyboardButton(text="+3 Москва, Анкара", callback_data="tz_+3")],
+            [InlineKeyboardButton(text="+4 Баку, Тбилиси", callback_data="tz_+4")],
+            [InlineKeyboardButton(text="+5 Екатеринбург, Ташкент", callback_data="tz_+5")],
+            [InlineKeyboardButton(text="+6 Алматы, Бишкек", callback_data="tz_+6")],
+            [InlineKeyboardButton(text="+7 Красноярск, Ханой", callback_data="tz_+7")],
+        ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 

@@ -99,9 +99,15 @@ async def process_request_access(callback: CallbackQuery):
 
         if req and req["status"] == "approved":
             # уже одобрен — снова показываем выбор пояса
-            await callback.message.answer(
-                "Выбор часового пояса:", reply_markup=get_timezone_keyboard()
-            )
+            user_lang = await get_user_language(user_id)
+            if user_lang == "en":
+                title = "Choose your time zone:"
+                kb = get_timezone_keyboard("en")
+            else:
+                title = "Выбор часового пояса:"
+                kb = get_timezone_keyboard("ru")
+
+            await callback.message.answer(title, reply_markup=kb)
             await callback.answer()
             return
 
