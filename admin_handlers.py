@@ -579,7 +579,7 @@ async def process_add(callback: CallbackQuery, state: FSMContext):
         return
 
     await callback.message.edit_text(
-        "Введите текст сообщения:",
+        "Введите текст сообщения RU:",
         reply_markup=get_back_keyboard(),
     )
     await state.set_state(AdminStates.waiting_for_message_text)
@@ -590,12 +590,12 @@ async def process_text_add(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id):
         return
 
-    await state.update_data(text=message.text)
+    await state.update_data(text_ru=message.text)
     await message.answer(
-        "Введите дату отправки:",
+        "Введите текст сообщения EN:",
         reply_markup=get_back_keyboard(),
     )
-    await state.set_state(AdminStates.waiting_for_message_date)
+    await state.set_state(AdminStates.waiting_for_message_lang)
 
 
 @router.message(AdminStates.waiting_for_message_date)
@@ -615,13 +615,28 @@ async def process_date_add(message: Message, state: FSMContext):
         await message.answer("Неверный формат даты. Попробуйте снова (например, '02.03').")
 
 
+@router.message(AdminStates.waiting_for_message_lang)
+async def process_text_add_en_or_lang(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+
+    # Здесь мы ожидаем текст EN для сообщения рассылки
+    await state.update_data(text_en=message.text)
+    await message.answer(
+        "Введите дату отправки:",
+        reply_markup=get_back_keyboard(),
+    )
+    await state.set_state(AdminStates.waiting_for_message_date)
+
+
 @router.message(AdminStates.waiting_for_message_time)
 async def process_time_add(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id):
         return
 
     data = await state.get_data()
-    msg_text = data["text"]
+    msg_text_ru = data["text_ru"]
+    msg_text_en = data["text_en"]
     msg_date = data["date"]
     msg_time = message.text
 
@@ -630,40 +645,18 @@ async def process_time_add(message: Message, state: FSMContext):
         dt_str = f"{current_year}.{msg_date} {msg_time}"
         dt = datetime.strptime(dt_str, "%Y.%d.%m %H:%M")
 
-        await state.update_data(datetime=dt)
+        # Создаём две записи в расписании: RU и EN
+        await add_message(msg_text_ru, dt, "ru")
+        await add_message(msg_text_en, dt, "en")
+
         await message.answer(
-            "Введите язык рассылки (ru / en / both):",
-            reply_markup=get_back_keyboard(),
+            f"Сообщения добавлены:\nRU: {msg_text_ru}\nEN: {msg_text_en}\n{dt.strftime('%d.%m.%Y %H:%M')}",
+            reply_markup=get_admin_keyboard(),
         )
-        await state.set_state(AdminStates.waiting_for_message_lang)
+        await state.clear()
 
     except ValueError:
         await message.answer("Неверный формат времени. Попробуйте снова (например, '14:07').")
-
-
-@router.message(AdminStates.waiting_for_message_lang)
-async def process_lang_add(message: Message, state: FSMContext):
-    if not is_admin(message.from_user.id):
-        return
-
-    lang_raw = (message.text or "").strip().lower()
-    if lang_raw not in ("ru", "en", "both"):
-        await message.answer("Введите 'ru', 'en' или 'both':")
-        return
-
-    target_lang = "all" if lang_raw == "both" else lang_raw
-
-    data = await state.get_data()
-    msg_text = data["text"]
-    dt = data["datetime"]
-
-    await add_message(msg_text, dt, target_lang)
-
-    await message.answer(
-        f"Сообщение добавлено:\n{msg_text}\n{dt.strftime('%d.%m.%Y %H:%M')} (язык: {lang_raw})",
-        reply_markup=get_admin_keyboard(),
-    )
-    await state.clear()
 
 
 @router.callback_query(F.data.startswith("admin_delete:"))
