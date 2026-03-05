@@ -3,8 +3,13 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
 from config import ADMIN_IDS
-from database import add_user, get_setting
-from keyboards import get_timezone_keyboard, get_admin_reply_keyboard
+from database import add_user, get_setting, get_access_request, set_access_request
+from keyboards import (
+    get_timezone_keyboard,
+    get_admin_reply_keyboard,
+    get_welcome_keyboard,
+    get_request_actions_keyboard,
+)
 
 router = Router()
 
@@ -12,8 +17,7 @@ router = Router()
 DEFAULT_WELCOME_TEXT = (
     "Привет!\n\n"
     "Я - Бот \"Ледяной\" Луны🌙\n\n"
-    "Вместе с тобой мы будем наблюдать за процессом жизни.\n\n"
-    "Выбор часового пояса:"
+    "Вместе с тобой мы будем наблюдать за процессом жизни."
 )
 
 DEFAULT_AFTER_TZ_TEXT = "Часовой пояс {tz} установлен."
@@ -25,15 +29,59 @@ async def cmd_start(message: Message):
     text = setting["text"] if setting and setting["text"] else DEFAULT_WELCOME_TEXT
     photo_id = setting["photo_file_id"] if setting else None
 
-    # сначала сообщение с выбором пояса (инлайн-кнопки)
+    # приветствие + инлайн-кнопка ЗАПРОС
     if photo_id:
-        await message.answer_photo(photo=photo_id, caption=text, reply_markup=get_timezone_keyboard())
+        await message.answer_photo(
+            photo=photo_id, caption=text, reply_markup=get_welcome_keyboard()
+        )
     else:
-        await message.answer(text, reply_markup=get_timezone_keyboard())
+        await message.answer(text, reply_markup=get_welcome_keyboard())
 
-    # затем, если это админ — включаем reply-клавиатуру с кнопкой /admin
     if message.from_user.id in ADMIN_IDS:
         await message.answer("Админ-клавиатура активна.", reply_markup=get_admin_reply_keyboard())
+
+
+@router.callback_query(F.data == "request_access")
+async def process_request_access(callback: CallbackQuery):
+    try:
+        user_id = callback.from_user.id
+        req = await get_access_request(user_id)
+
+        if req and req["status"] == "approved":
+            # уже одобрен — снова показываем выбор пояса
+            await callback.message.answer(
+                "Выбор часового пояса:", reply_markup=get_timezone_keyboard()
+            )
+            await callback.answer()
+            return
+
+        if req and req["status"] == "rejected":
+            await callback.answer("Заявка была отклонена.", show_alert=True)
+            return
+
+        await set_access_request(user_id, "pending")
+
+        name = callback.from_user.full_name or "—"
+        username = callback.from_user.username
+        username_str = f"@{username}" if username else "не указан"
+        admin_text = (
+            "Новый запрос:\n\n"
+            f"Имя: {name}\n"
+            f"Username: {username_str}"
+        )
+
+        kb = get_request_actions_keyboard(user_id)
+        for admin_id in ADMIN_IDS:
+            try:
+                await callback.bot.send_message(
+                    chat_id=admin_id, text=admin_text, reply_markup=kb
+                )
+            except Exception:
+                pass
+
+        await callback.answer("Заявка отправлена.")
+    except Exception:
+        await callback.answer("Ошибка. Попробуйте позже.", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("tz_"))

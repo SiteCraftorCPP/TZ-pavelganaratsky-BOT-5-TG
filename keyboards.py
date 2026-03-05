@@ -1,6 +1,12 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 
+def get_welcome_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="ЗАПРОС", callback_data="request_access")]]
+    )
+
+
 def get_timezone_keyboard():
     buttons = [
         [InlineKeyboardButton(text="+2 Киев, Таллинн", callback_data="tz_+2")],
@@ -31,6 +37,17 @@ def get_admin_keyboard():
         [InlineKeyboardButton(text="🧹 Удалить все сообщения", callback_data="admin_delete_all_confirm")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def get_request_actions_keyboard(user_id: int):
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Одобрить", callback_data=f"approve_{user_id}"),
+                InlineKeyboardButton(text="Отклонить", callback_data=f"reject_{user_id}"),
+            ]
+        ]
+    )
 
 
 def get_back_keyboard():

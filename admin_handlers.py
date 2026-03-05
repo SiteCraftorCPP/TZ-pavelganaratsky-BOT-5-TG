@@ -15,7 +15,10 @@ from database import (
     get_message,
     get_setting,
     set_setting,
+    get_access_request,
+    set_access_request,
 )
+from keyboards import get_timezone_keyboard
 from datetime import datetime
 
 router = Router()
@@ -51,6 +54,59 @@ async def admin_menu_callback(callback: CallbackQuery, state: FSMContext):
         return
     await state.clear()
     await _send_admin_menu(callback)
+
+
+@router.callback_query(F.data.startswith("approve_"))
+async def process_approve_request(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    try:
+        user_id = int(callback.data.split("_", 1)[1])
+    except (IndexError, ValueError):
+        await callback.answer("Ошибка.", show_alert=True)
+        return
+    req = await get_access_request(user_id)
+    if not req or req["status"] != "pending":
+        await callback.answer("Заявка уже обработана.", show_alert=True)
+        return
+    await set_access_request(user_id, "approved")
+    try:
+        await callback.bot.send_message(
+            chat_id=user_id,
+            text="Выбор часового пояса:",
+            reply_markup=get_timezone_keyboard(),
+        )
+    except Exception:
+        await callback.answer("Не удалось отправить пользователю.", show_alert=True)
+        return
+    try:
+        await callback.message.edit_text(
+            callback.message.text + "\n\n✅ Одобрено.",
+            reply_markup=None,
+        )
+    except Exception:
+        pass
+    await callback.answer("Одобрено.")
+
+
+@router.callback_query(F.data.startswith("reject_"))
+async def process_reject_request(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    try:
+        user_id = int(callback.data.split("_", 1)[1])
+    except (IndexError, ValueError):
+        await callback.answer("Ошибка.", show_alert=True)
+        return
+    await set_access_request(user_id, "rejected")
+    try:
+        await callback.message.edit_text(
+            callback.message.text + "\n\n❌ Отклонено.",
+            reply_markup=None,
+        )
+    except Exception:
+        pass
+    await callback.answer("Отклонено.")
 
 
 @router.callback_query(F.data == "admin_back")

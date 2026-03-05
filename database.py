@@ -45,6 +45,36 @@ async def init_db():
             )
         """
         )
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS access_requests (
+                user_id INTEGER PRIMARY KEY,
+                status TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+        await db.commit()
+
+
+async def get_access_request(user_id: int):
+    async with aiosqlite.connect(DB_NAME) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT user_id, status FROM access_requests WHERE user_id = ?", (user_id,)
+        ) as cursor:
+            return await cursor.fetchone()
+
+
+async def set_access_request(user_id: int, status: str):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute(
+            """
+            INSERT INTO access_requests (user_id, status) VALUES (?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET status = excluded.status
+        """,
+            (user_id, status),
+        )
         await db.commit()
 
 
