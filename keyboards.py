@@ -9,6 +9,7 @@ def get_welcome_keyboard():
 
 def get_timezone_keyboard():
     buttons = [
+        [InlineKeyboardButton(text="+1 Берлин, Монтенегро", callback_data="tz_+1")],
         [InlineKeyboardButton(text="+2 Киев, Таллинн", callback_data="tz_+2")],
         [InlineKeyboardButton(text="+3 Москва, Анкара", callback_data="tz_+3")],
         [InlineKeyboardButton(text="+4 Баку, Тбилиси", callback_data="tz_+4")],
