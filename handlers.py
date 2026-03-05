@@ -39,13 +39,14 @@ DEFAULT_AFTER_TZ_TEXT_EN = "Time zone {tz} has been set."
 
 
 async def send_welcome(message: Message | CallbackQuery, lang: str):
-    # пока используем один и тот же settings.welcome для обеих локалей,
-    # дефолтные тексты разные
-    setting = await get_setting("welcome")
+    # Раздельные настройки для RU/EN
     if lang == "en":
+        setting = await get_setting("welcome_en")
         base = DEFAULT_WELCOME_TEXT_EN
     else:
+        setting = await get_setting("welcome_ru")
         base = DEFAULT_WELCOME_TEXT_RU
+
     text = setting["text"] if setting and setting["text"] else base
     photo_id = setting["photo_file_id"] if setting else None
 
@@ -144,11 +145,12 @@ async def process_timezone(callback: CallbackQuery):
 
         await add_user(user_id, timezone)
 
-        setting = await get_setting("after_timezone")
         user_lang = await get_user_language(user_id)
         if user_lang == "en":
+            setting = await get_setting("after_timezone_en")
             base = DEFAULT_AFTER_TZ_TEXT_EN
         else:
+            setting = await get_setting("after_timezone_ru")
             base = DEFAULT_AFTER_TZ_TEXT_RU
 
         if setting and setting["text"]:
