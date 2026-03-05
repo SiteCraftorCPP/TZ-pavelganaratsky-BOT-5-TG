@@ -16,7 +16,15 @@ class AdminStates(StatesGroup):
     editing_time = State()
 
     # Greeting / timezone texts
-    editing_welcome_text = State()
-    editing_welcome_photo = State()
-    editing_after_tz_text = State()
-    editing_after_tz_photo = State()
+    editing_welcome_text_ru = State()
+    editing_welcome_photo_ru = State()
+    editing_welcome_text_en = State()
+    editing_welcome_photo_en = State()
+
+    editing_after_tz_text_ru = State()
+    editing_after_tz_photo_ru = State()
+    editing_after_tz_text_en = State()
+    editing_after_tz_photo_en = State()
+
+    # For schedule language targeting
+    waiting_for_message_lang = State()

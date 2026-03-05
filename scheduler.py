@@ -45,11 +45,22 @@ async def check_and_send_messages(bot: Bot):
     for msg in messages:
         text = msg["message_text"]
         schedule_id = msg["id"]
+        target_lang = msg.get("target_language") if isinstance(msg, dict) else msg["target_language"]
         base_msk_time = _parse_send_time(msg["send_time"])
 
         for user in users:
             user_id = user["user_id"]
             tz_str = user["timezone"] or "+3"
+            user_lang = user.get("language") if isinstance(user, dict) else user["language"]
+
+            # если язык пользователя не выбран — рассылку не шлём
+            if not user_lang:
+                continue
+
+            # фильтруем по языку
+            if target_lang and target_lang not in ("all", "both"):
+                if target_lang != user_lang:
+                    continue
 
             try:
                 user_offset = int(tz_str.replace("+", "").replace(" ", ""))

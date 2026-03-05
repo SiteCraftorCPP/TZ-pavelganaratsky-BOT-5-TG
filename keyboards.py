@@ -28,6 +28,17 @@ def get_admin_reply_keyboard():
     )
 
 
+def get_language_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🇷🇺 RU", callback_data="lang_ru"),
+                InlineKeyboardButton(text="🇬🇧 EN", callback_data="lang_en"),
+            ]
+        ]
+    )
+
+
 def get_admin_keyboard():
     buttons = [
         [InlineKeyboardButton(text="📋 Сообщения рассылки", callback_data="admin_list")],

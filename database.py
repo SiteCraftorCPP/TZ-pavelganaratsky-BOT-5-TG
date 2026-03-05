@@ -11,6 +11,7 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
                 timezone TEXT,
+                language TEXT,
                 joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """
@@ -21,6 +22,7 @@ async def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 message_text TEXT,
                 send_time TIMESTAMP,
+                target_language TEXT,
                 is_sent BOOLEAN DEFAULT 0
             )
         """
@@ -54,6 +56,15 @@ async def init_db():
             )
         """
         )
+        # На случай уже существующих таблиц — пытаемся добавить недостающие колонки
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN language TEXT")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE schedule ADD COLUMN target_language TEXT")
+        except Exception:
+            pass
         await db.commit()
 
 
@@ -78,10 +89,37 @@ async def set_access_request(user_id: int, status: str):
         await db.commit()
 
 
+async def set_user_language(user_id: int, language: str):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute(
+            """
+            INSERT INTO users (user_id, language) VALUES (?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET language = excluded.language
+        """,
+            (user_id, language),
+        )
+        await db.commit()
+
+
+async def get_user_language(user_id: int) -> str | None:
+    async with aiosqlite.connect(DB_NAME) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT language FROM users WHERE user_id = ?", (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            return row["language"]
+
+
 async def add_user(user_id: int, timezone: str):
     async with aiosqlite.connect(DB_NAME) as db:
         await db.execute(
-            "INSERT OR REPLACE INTO users (user_id, timezone) VALUES (?, ?)",
+            """
+            INSERT INTO users (user_id, timezone) VALUES (?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET timezone = excluded.timezone
+        """,
             (user_id, timezone),
         )
         await db.commit()
@@ -90,17 +128,26 @@ async def add_user(user_id: int, timezone: str):
 async def get_users():
     async with aiosqlite.connect(DB_NAME) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT user_id, timezone FROM users") as cursor:
+        async with db.execute(
+            "SELECT user_id, timezone, language FROM users"
+        ) as cursor:
             return await cursor.fetchall()
 
 
-async def add_message(text: str, send_time: datetime.datetime):
+async def add_message(
+    text: str,
+    send_time: datetime.datetime,
+    target_language: str | None = "all",
+):
     # В БД храним одно базовое время по МСК
     send_time_str = send_time.strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(DB_NAME) as db:
         await db.execute(
-            "INSERT INTO schedule (message_text, send_time) VALUES (?, ?)",
-            (text, send_time_str),
+            """
+            INSERT INTO schedule (message_text, send_time, target_language)
+            VALUES (?, ?, ?)
+        """,
+            (text, send_time_str, target_language),
         )
         await db.commit()
 

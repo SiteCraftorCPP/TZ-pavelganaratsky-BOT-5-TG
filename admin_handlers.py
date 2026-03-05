@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
 from config import ADMIN_IDS
-from keyboards import get_admin_keyboard, get_back_keyboard
+from keyboards import get_admin_keyboard, get_back_keyboard, get_timezone_keyboard
 from states import AdminStates
 from database import (
     get_all_messages,
@@ -17,6 +17,7 @@ from database import (
     set_setting,
     get_access_request,
     set_access_request,
+    get_user_language,
 )
 from keyboards import get_timezone_keyboard
 from datetime import datetime
@@ -70,6 +71,11 @@ async def process_approve_request(callback: CallbackQuery):
         await callback.answer("Заявка уже обработана.", show_alert=True)
         return
     await set_access_request(user_id, "approved")
+
+    # язык пользователя для инфы админам
+    user_lang = await get_user_language(user_id)
+    lang_str = (user_lang or "не выбран").upper()
+
     try:
         await callback.bot.send_message(
             chat_id=user_id,
@@ -79,6 +85,17 @@ async def process_approve_request(callback: CallbackQuery):
     except Exception:
         await callback.answer("Не удалось отправить пользователю.", show_alert=True)
         return
+
+    # уведомляем всех админов о результате
+    for admin_id in ADMIN_IDS:
+        try:
+            await callback.bot.send_message(
+                chat_id=admin_id,
+                text=callback.message.text + f"\n\n✅ Одобрено (язык: {lang_str}).",
+            )
+        except Exception:
+            pass
+
     try:
         await callback.message.edit_text(
             callback.message.text + "\n\n✅ Одобрено.",
@@ -99,6 +116,20 @@ async def process_reject_request(callback: CallbackQuery):
         await callback.answer("Ошибка.", show_alert=True)
         return
     await set_access_request(user_id, "rejected")
+
+    user_lang = await get_user_language(user_id)
+    lang_str = (user_lang or "не выбран").upper()
+
+    # уведомляем всех админов
+    for admin_id in ADMIN_IDS:
+        try:
+            await callback.bot.send_message(
+                chat_id=admin_id,
+                text=callback.message.text + f"\n\n❌ Отклонено (язык: {lang_str}).",
+            )
+        except Exception:
+            pass
+
     try:
         await callback.message.edit_text(
             callback.message.text + "\n\n❌ Отклонено.",
@@ -246,52 +277,43 @@ async def admin_edit_welcome(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
         return
 
-    setting = await get_setting("welcome")
-    current_text = setting["text"] if setting and setting["text"] else "Текст по умолчанию."
-
-    await callback.message.edit_text("Отправьте текст:", reply_markup=get_back_keyboard())
-    await state.update_data(
-        welcome_text=current_text,
-        welcome_photo=setting["photo_file_id"] if setting else None,
+    await callback.message.edit_text(
+        "Отправьте текст RU:", reply_markup=get_back_keyboard()
     )
-    await state.set_state(AdminStates.editing_welcome_text)
+    await state.set_state(AdminStates.editing_welcome_text_ru)
 
 
-@router.message(AdminStates.editing_welcome_text)
-async def admin_welcome_text(message: Message, state: FSMContext):
+@router.message(AdminStates.editing_welcome_text_ru)
+async def admin_welcome_text_ru(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id):
         return
 
-    data = await state.get_data()
-    old_text = data.get("welcome_text")
-
-    new_text = message.text
-    if new_text.strip() == "-":
-        new_text = old_text
-
-    await state.update_data(welcome_text=new_text)
+    text_ru = message.text
+    await state.update_data(welcome_text_ru=text_ru)
 
     await message.answer(
-        "Отправьте фото или нажмите '-':",
+        "Отправьте фото для RU или нажмите '-':",
         reply_markup=get_back_keyboard(),
     )
-    await state.set_state(AdminStates.editing_welcome_photo)
+    await state.set_state(AdminStates.editing_welcome_photo_ru)
 
 
-@router.message(AdminStates.editing_welcome_photo)
-async def admin_welcome_photo(message: Message, state: FSMContext):
+@router.message(AdminStates.editing_welcome_photo_ru)
+async def admin_welcome_photo_ru(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id):
         return
 
     data = await state.get_data()
-    text = data.get("welcome_text")
-    old_photo = data.get("welcome_photo")
+    text_ru = data.get("welcome_text_ru")
 
-    photo_id = old_photo
+    setting_ru = await get_setting("welcome_ru")
+    old_photo_ru = setting_ru["photo_file_id"] if setting_ru else None
+
+    photo_ru = old_photo_ru
     if message.photo:
-        photo_id = message.photo[-1].file_id
+        photo_ru = message.photo[-1].file_id
     elif message.text and message.text.strip() == "-":
-        photo_id = old_photo
+        photo_ru = old_photo_ru
     else:
         await message.answer(
             "Пришлите фото или '-' чтобы оставить текущее значение.",
@@ -299,11 +321,57 @@ async def admin_welcome_photo(message: Message, state: FSMContext):
         )
         return
 
-    await set_setting("welcome", text, photo_id)
+    await set_setting("welcome_ru", text_ru, photo_ru)
+
+    await message.answer(
+        "Отправьте текст EN:", reply_markup=get_back_keyboard()
+    )
+    await state.set_state(AdminStates.editing_welcome_text_en)
+
+
+@router.message(AdminStates.editing_welcome_text_en)
+async def admin_welcome_text_en(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+
+    text_en = message.text
+    await state.update_data(welcome_text_en=text_en)
+
+    await message.answer(
+        "Отправьте фото для EN или нажмите '-':",
+        reply_markup=get_back_keyboard(),
+    )
+    await state.set_state(AdminStates.editing_welcome_photo_en)
+
+
+@router.message(AdminStates.editing_welcome_photo_en)
+async def admin_welcome_photo_en(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+
+    data = await state.get_data()
+    text_en = data.get("welcome_text_en")
+
+    setting_en = await get_setting("welcome_en")
+    old_photo_en = setting_en["photo_file_id"] if setting_en else None
+
+    photo_en = old_photo_en
+    if message.photo:
+        photo_en = message.photo[-1].file_id
+    elif message.text and message.text.strip() == "-":
+        photo_en = old_photo_en
+    else:
+        await message.answer(
+            "Пришлите фото или '-' чтобы оставить текущее значение.",
+            reply_markup=get_back_keyboard(),
+        )
+        return
+
+    await set_setting("welcome_en", text_en, photo_en)
     await state.clear()
 
     await message.answer(
-        "Приветствие обновлено.",
+        "Приветствие (RU/EN) обновлено.",
         reply_markup=get_admin_keyboard(),
     )
 
@@ -313,56 +381,43 @@ async def admin_edit_after_tz(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
         return
 
-    setting = await get_setting("after_timezone")
-    current_text = (
-        setting["text"]
-        if setting and setting["text"]
-        else "Часовой пояс {tz} установлен."
+    await callback.message.edit_text(
+        "Отправьте текст RU:", reply_markup=get_back_keyboard()
     )
-
-    await callback.message.edit_text("Отправьте текст:", reply_markup=get_back_keyboard())
-    await state.update_data(
-        after_tz_text=current_text,
-        after_tz_photo=setting["photo_file_id"] if setting else None,
-    )
-    await state.set_state(AdminStates.editing_after_tz_text)
+    await state.set_state(AdminStates.editing_after_tz_text_ru)
 
 
-@router.message(AdminStates.editing_after_tz_text)
-async def admin_after_tz_text(message: Message, state: FSMContext):
+@router.message(AdminStates.editing_after_tz_text_ru)
+async def admin_after_tz_text_ru(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id):
         return
 
-    data = await state.get_data()
-    old_text = data.get("after_tz_text")
-
-    new_text = message.text
-    if new_text.strip() == "-":
-        new_text = old_text
-
-    await state.update_data(after_tz_text=new_text)
+    text_ru = message.text
+    await state.update_data(after_tz_text_ru=text_ru)
 
     await message.answer(
-        "Отправьте фото или нажмите '-':",
+        "Отправьте фото для RU или нажмите '-':",
         reply_markup=get_back_keyboard(),
     )
-    await state.set_state(AdminStates.editing_after_tz_photo)
+    await state.set_state(AdminStates.editing_after_tz_photo_ru)
 
 
-@router.message(AdminStates.editing_after_tz_photo)
-async def admin_after_tz_photo(message: Message, state: FSMContext):
+@router.message(AdminStates.editing_after_tz_photo_ru)
+async def admin_after_tz_photo_ru(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id):
         return
 
     data = await state.get_data()
-    text = data.get("after_tz_text")
-    old_photo = data.get("after_tz_photo")
+    text_ru = data.get("after_tz_text_ru")
 
-    photo_id = old_photo
+    setting_ru = await get_setting("after_timezone_ru")
+    old_photo_ru = setting_ru["photo_file_id"] if setting_ru else None
+
+    photo_ru = old_photo_ru
     if message.photo:
-        photo_id = message.photo[-1].file_id
+        photo_ru = message.photo[-1].file_id
     elif message.text and message.text.strip() == "-":
-        photo_id = old_photo
+        photo_ru = old_photo_ru
     else:
         await message.answer(
             "Пришлите фото или '-' чтобы оставить текущее значение.",
@@ -370,11 +425,57 @@ async def admin_after_tz_photo(message: Message, state: FSMContext):
         )
         return
 
-    await set_setting("after_timezone", text, photo_id)
+    await set_setting("after_timezone_ru", text_ru, photo_ru)
+
+    await message.answer(
+        "Отправьте текст EN:", reply_markup=get_back_keyboard()
+    )
+    await state.set_state(AdminStates.editing_after_tz_text_en)
+
+
+@router.message(AdminStates.editing_after_tz_text_en)
+async def admin_after_tz_text_en(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+
+    text_en = message.text
+    await state.update_data(after_tz_text_en=text_en)
+
+    await message.answer(
+        "Отправьте фото для EN или нажмите '-':",
+        reply_markup=get_back_keyboard(),
+    )
+    await state.set_state(AdminStates.editing_after_tz_photo_en)
+
+
+@router.message(AdminStates.editing_after_tz_photo_en)
+async def admin_after_tz_photo_en(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+
+    data = await state.get_data()
+    text_en = data.get("after_tz_text_en")
+
+    setting_en = await get_setting("after_timezone_en")
+    old_photo_en = setting_en["photo_file_id"] if setting_en else None
+
+    photo_en = old_photo_en
+    if message.photo:
+        photo_en = message.photo[-1].file_id
+    elif message.text and message.text.strip() == "-":
+        photo_en = old_photo_en
+    else:
+        await message.answer(
+            "Пришлите фото или '-' чтобы оставить текущее значение.",
+            reply_markup=get_back_keyboard(),
+        )
+        return
+
+    await set_setting("after_timezone_en", text_en, photo_en)
     await state.clear()
 
     await message.answer(
-        "Текст после выбора пояса обновлён.",
+        "Текст после выбора пояса (RU/EN) обновлён.",
         reply_markup=get_admin_keyboard(),
     )
 
@@ -529,16 +630,40 @@ async def process_time_add(message: Message, state: FSMContext):
         dt_str = f"{current_year}.{msg_date} {msg_time}"
         dt = datetime.strptime(dt_str, "%Y.%d.%m %H:%M")
 
-        await add_message(msg_text, dt)
-
+        await state.update_data(datetime=dt)
         await message.answer(
-            f"Сообщение добавлено:\n{msg_text}\n{dt.strftime('%d.%m.%Y %H:%M')}",
-            reply_markup=get_admin_keyboard(),
+            "Введите язык рассылки (ru / en / both):",
+            reply_markup=get_back_keyboard(),
         )
-        await state.clear()
+        await state.set_state(AdminStates.waiting_for_message_lang)
 
     except ValueError:
         await message.answer("Неверный формат времени. Попробуйте снова (например, '14:07').")
+
+
+@router.message(AdminStates.waiting_for_message_lang)
+async def process_lang_add(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+
+    lang_raw = (message.text or "").strip().lower()
+    if lang_raw not in ("ru", "en", "both"):
+        await message.answer("Введите 'ru', 'en' или 'both':")
+        return
+
+    target_lang = "all" if lang_raw == "both" else lang_raw
+
+    data = await state.get_data()
+    msg_text = data["text"]
+    dt = data["datetime"]
+
+    await add_message(msg_text, dt, target_lang)
+
+    await message.answer(
+        f"Сообщение добавлено:\n{msg_text}\n{dt.strftime('%d.%m.%Y %H:%M')} (язык: {lang_raw})",
+        reply_markup=get_admin_keyboard(),
+    )
+    await state.clear()
 
 
 @router.callback_query(F.data.startswith("admin_delete:"))

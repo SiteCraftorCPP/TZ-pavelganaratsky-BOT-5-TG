@@ -3,42 +3,91 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
 from config import ADMIN_IDS
-from database import add_user, get_setting, get_access_request, set_access_request
+from database import (
+    add_user,
+    get_setting,
+    get_access_request,
+    set_access_request,
+    set_user_language,
+    get_user_language,
+)
 from keyboards import (
     get_timezone_keyboard,
     get_admin_reply_keyboard,
     get_welcome_keyboard,
     get_request_actions_keyboard,
+    get_language_keyboard,
 )
 
 router = Router()
 
 
-DEFAULT_WELCOME_TEXT = (
+DEFAULT_WELCOME_TEXT_RU = (
     "Привет!\n\n"
     "Я - Бот \"Ледяной\" Луны🌙\n\n"
     "Вместе с тобой мы будем наблюдать за процессом жизни."
 )
 
-DEFAULT_AFTER_TZ_TEXT = "Часовой пояс {tz} установлен."
+DEFAULT_WELCOME_TEXT_EN = (
+    "Hello!\n\n"
+    "I am the \"Icy\" Moon bot 🌙\n\n"
+    "Together we will observe the flow of life."
+)
+
+DEFAULT_AFTER_TZ_TEXT_RU = "Часовой пояс {tz} установлен."
+DEFAULT_AFTER_TZ_TEXT_EN = "Time zone {tz} has been set."
+
+
+async def send_welcome(message: Message | CallbackQuery, lang: str):
+    # пока используем один и тот же settings.welcome для обеих локалей,
+    # дефолтные тексты разные
+    setting = await get_setting("welcome")
+    if lang == "en":
+        base = DEFAULT_WELCOME_TEXT_EN
+    else:
+        base = DEFAULT_WELCOME_TEXT_RU
+    text = setting["text"] if setting and setting["text"] else base
+    photo_id = setting["photo_file_id"] if setting else None
+
+    target = message.message if isinstance(message, CallbackQuery) else message
+
+    if photo_id:
+        await target.answer_photo(
+            photo=photo_id, caption=text, reply_markup=get_welcome_keyboard()
+        )
+    else:
+        await target.answer(text, reply_markup=get_welcome_keyboard())
+
+    user_id = (
+        message.from_user.id
+        if isinstance(message, Message)
+        else message.from_user.id
+    )
+    if user_id in ADMIN_IDS and isinstance(message, Message):
+        await message.answer(
+            "Админ-клавиатура активна.", reply_markup=get_admin_reply_keyboard()
+        )
 
 
 @router.message(Command("start"))
 async def cmd_start(message: Message):
-    setting = await get_setting("welcome")
-    text = setting["text"] if setting and setting["text"] else DEFAULT_WELCOME_TEXT
-    photo_id = setting["photo_file_id"] if setting else None
-
-    # приветствие + инлайн-кнопка ЗАПРОС
-    if photo_id:
-        await message.answer_photo(
-            photo=photo_id, caption=text, reply_markup=get_welcome_keyboard()
+    lang = await get_user_language(message.from_user.id)
+    if not lang:
+        await message.answer(
+            "Выберите язык / Choose language", reply_markup=get_language_keyboard()
         )
-    else:
-        await message.answer(text, reply_markup=get_welcome_keyboard())
+        return
 
-    if message.from_user.id in ADMIN_IDS:
-        await message.answer("Админ-клавиатура активна.", reply_markup=get_admin_reply_keyboard())
+    await send_welcome(message, lang)
+
+
+@router.callback_query(F.data.in_(["lang_ru", "lang_en"]))
+async def process_language_select(callback: CallbackQuery):
+    lang = "ru" if callback.data == "lang_ru" else "en"
+    user_id = callback.from_user.id
+    await set_user_language(user_id, lang)
+    await callback.answer()
+    await send_welcome(callback, lang)
 
 
 @router.callback_query(F.data == "request_access")
@@ -64,10 +113,13 @@ async def process_request_access(callback: CallbackQuery):
         name = callback.from_user.full_name or "—"
         username = callback.from_user.username
         username_str = f"@{username}" if username else "не указан"
+        user_lang = await get_user_language(user_id)
+        lang_str = (user_lang or "не выбран").upper()
         admin_text = (
             "Новый запрос:\n\n"
             f"Имя: {name}\n"
-            f"Username: {username_str}"
+            f"Username: {username_str}\n"
+            f"Язык: {lang_str}"
         )
 
         kb = get_request_actions_keyboard(user_id)
@@ -93,10 +145,16 @@ async def process_timezone(callback: CallbackQuery):
         await add_user(user_id, timezone)
 
         setting = await get_setting("after_timezone")
+        user_lang = await get_user_language(user_id)
+        if user_lang == "en":
+            base = DEFAULT_AFTER_TZ_TEXT_EN
+        else:
+            base = DEFAULT_AFTER_TZ_TEXT_RU
+
         if setting and setting["text"]:
             text = setting["text"].replace("{tz}", timezone)
         else:
-            text = DEFAULT_AFTER_TZ_TEXT.format(tz=timezone)
+            text = base.format(tz=timezone)
         photo_id = setting["photo_file_id"] if setting else None
 
         # убираем клавиатуру выбора пояса
