@@ -54,10 +54,10 @@ async def send_welcome(message: Message | CallbackQuery, lang: str):
 
     if photo_id:
         await target.answer_photo(
-            photo=photo_id, caption=text, reply_markup=get_welcome_keyboard()
+            photo=photo_id, caption=text, reply_markup=get_welcome_keyboard(lang)
         )
     else:
-        await target.answer(text, reply_markup=get_welcome_keyboard())
+        await target.answer(text, reply_markup=get_welcome_keyboard(lang))
 
     user_id = (
         message.from_user.id

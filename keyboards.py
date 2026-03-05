@@ -1,9 +1,10 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 
-def get_welcome_keyboard():
+def get_welcome_keyboard(lang: str = "ru"):
+    text = "REQUEST" if lang == "en" else "ЗАПРОС"
     return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="ЗАПРОС", callback_data="request_access")]]
+        inline_keyboard=[[InlineKeyboardButton(text=text, callback_data="request_access")]]
     )
 
 
