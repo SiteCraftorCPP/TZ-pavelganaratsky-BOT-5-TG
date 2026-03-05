@@ -88,6 +88,10 @@ async def process_approve_request(callback: CallbackQuery):
 
     # уведомляем всех админов о результате
     for admin_id in ADMIN_IDS:
+        # тому админу, кто уже видит отредактированное сообщение,
+        # дублировать уведомление не будем
+        if admin_id == callback.from_user.id:
+            continue
         try:
             await callback.bot.send_message(
                 chat_id=admin_id,
@@ -122,6 +126,8 @@ async def process_reject_request(callback: CallbackQuery):
 
     # уведомляем всех админов
     for admin_id in ADMIN_IDS:
+        if admin_id == callback.from_user.id:
+            continue
         try:
             await callback.bot.send_message(
                 chat_id=admin_id,
