@@ -2,7 +2,8 @@ import asyncio
 import logging
 import sys
 from aiogram import Bot, Dispatcher
-from config import BOT_TOKEN
+from aiogram.client.session.aiohttp import AiohttpSession
+from config import BOT_TOKEN, get_telegram_proxy_url
 from database import init_db, seed_march_if_needed
 from handlers import router as user_router
 from admin_handlers import router as admin_router
@@ -29,7 +30,9 @@ async def main():
     await seed_march_if_needed()
 
     # Initialize Bot and Dispatcher
-    bot = Bot(token=BOT_TOKEN)
+    proxy_url = get_telegram_proxy_url()
+    session = AiohttpSession(proxy=proxy_url) if proxy_url else None
+    bot = Bot(token=BOT_TOKEN, session=session)
     dp = Dispatcher()
 
     # Include routers

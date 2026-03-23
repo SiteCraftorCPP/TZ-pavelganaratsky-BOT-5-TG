@@ -96,27 +96,12 @@ async def process_request_access(callback: CallbackQuery):
         req = await get_access_request(user_id)
 
         if req and req["status"] == "approved":
-            # Уже одобрен — снова шлём сообщение после одобрения (без выбора пояса)
-            user_lang = await get_user_language(user_id)
-            if user_lang == "en":
-                setting = await get_setting("after_timezone_en")
-                base = DEFAULT_AFTER_TZ_TEXT_EN
-            else:
-                setting = await get_setting("after_timezone_ru")
-                base = DEFAULT_AFTER_TZ_TEXT_RU
+            # Уже одобрен — ничего дополнительно не отправляем
+            await callback.answer("Запрос уже одобрен.")
+            return
 
-            text = (
-                (setting["text"] if setting and setting["text"] else base)
-                .replace("{tz}", "")
-                .strip()
-            )
-            photo_id = setting["photo_file_id"] if setting else None
-
-            if photo_id:
-                await callback.bot.send_photo(chat_id=user_id, photo=photo_id, caption=text)
-            else:
-                await callback.bot.send_message(chat_id=user_id, text=text)
-            await callback.answer()
+        if req and req["status"] == "pending":
+            await callback.answer("Запрос уже направлен, ожидайте решения.", show_alert=True)
             return
 
         if req and req["status"] == "rejected":

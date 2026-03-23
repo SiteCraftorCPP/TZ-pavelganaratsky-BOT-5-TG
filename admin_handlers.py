@@ -75,30 +75,7 @@ async def process_approve_request(callback: CallbackQuery):
     user_lang = await get_user_language(user_id)
     lang_str = (user_lang or "не выбран").upper()
 
-    try:
-        # Вырезаем выбор часового пояса: просто шлём сообщение после одобрения
-        if user_lang == "en":
-            setting = await get_setting("after_timezone_en")
-            fallback = "Time zone {tz} has been set."
-        else:
-            setting = await get_setting("after_timezone_ru")
-            fallback = "Часовой пояс {tz} установлен."
-
-        if setting and setting["text"]:
-            text = setting["text"]
-        else:
-            text = fallback
-
-        text = text.replace("{tz}", "").replace("  ", " ").strip()
-        photo_id = setting["photo_file_id"] if setting else None
-
-        if photo_id:
-            await callback.bot.send_photo(chat_id=user_id, photo=photo_id, caption=text)
-        else:
-            await callback.bot.send_message(chat_id=user_id, text=text)
-    except Exception:
-        await callback.answer("Не удалось отправить пользователю.", show_alert=True)
-        return
+    # Пользователю после одобрения ничего автоматически не отправляем
 
     # уведомляем всех админов о результате
     for admin_id in ADMIN_IDS:
