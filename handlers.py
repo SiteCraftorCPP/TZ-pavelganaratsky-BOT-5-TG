@@ -149,3 +149,10 @@ async def process_request_access(callback: CallbackQuery):
         await callback.answer("Заявка отправлена.")
     except Exception:
         await callback.answer("Ошибка. Попробуйте позже.", show_alert=True)
+
+
+# Старые инлайновые кнопки выбора пояса могут остаться у пользователей.
+# Чтобы не ловить тишину — игнорируем их.
+@router.callback_query(F.data.startswith("tz_"))
+async def ignore_timezone_buttons(callback: CallbackQuery):
+    await callback.answer()
