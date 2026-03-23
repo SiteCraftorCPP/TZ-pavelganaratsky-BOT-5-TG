@@ -75,7 +75,7 @@ async def cmd_start(message: Message):
     lang = await get_user_language(message.from_user.id)
     if not lang:
         await message.answer(
-            "Выберите язык / Choose language", reply_markup=get_language_keyboard()
+            "Выберите язык / Choose the language", reply_markup=get_language_keyboard()
         )
         return
 
