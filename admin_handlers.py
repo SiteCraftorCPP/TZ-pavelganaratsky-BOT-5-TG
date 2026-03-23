@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
 from config import ADMIN_IDS
-from keyboards import get_admin_keyboard, get_back_keyboard, get_timezone_keyboard
+from keyboards import get_admin_keyboard, get_back_keyboard
 from states import AdminStates
 from database import (
     get_all_messages,
@@ -19,7 +19,6 @@ from database import (
     set_access_request,
     get_user_language,
 )
-from keyboards import get_timezone_keyboard
 from datetime import datetime
 
 router = Router()
@@ -77,14 +76,26 @@ async def process_approve_request(callback: CallbackQuery):
     lang_str = (user_lang or "не выбран").upper()
 
     try:
+        # Вырезаем выбор часового пояса: просто шлём сообщение после одобрения
         if user_lang == "en":
-            title = "Choose your time zone:"
-            kb = get_timezone_keyboard("en")
+            setting = await get_setting("after_timezone_en")
+            fallback = "Time zone {tz} has been set."
         else:
-            title = "Выбор часового пояса:"
-            kb = get_timezone_keyboard("ru")
+            setting = await get_setting("after_timezone_ru")
+            fallback = "Часовой пояс {tz} установлен."
 
-        await callback.bot.send_message(chat_id=user_id, text=title, reply_markup=kb)
+        if setting and setting["text"]:
+            text = setting["text"]
+        else:
+            text = fallback
+
+        text = text.replace("{tz}", "").replace("  ", " ").strip()
+        photo_id = setting["photo_file_id"] if setting else None
+
+        if photo_id:
+            await callback.bot.send_photo(chat_id=user_id, photo=photo_id, caption=text)
+        else:
+            await callback.bot.send_message(chat_id=user_id, text=text)
     except Exception:
         await callback.answer("Не удалось отправить пользователю.", show_alert=True)
         return

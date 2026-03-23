@@ -4,7 +4,6 @@ from aiogram.types import Message, CallbackQuery
 
 from config import ADMIN_IDS
 from database import (
-    add_user,
     get_setting,
     get_access_request,
     set_access_request,
@@ -12,7 +11,6 @@ from database import (
     get_user_language,
 )
 from keyboards import (
-    get_timezone_keyboard,
     get_admin_reply_keyboard,
     get_welcome_keyboard,
     get_request_actions_keyboard,
@@ -98,16 +96,26 @@ async def process_request_access(callback: CallbackQuery):
         req = await get_access_request(user_id)
 
         if req and req["status"] == "approved":
-            # уже одобрен — снова показываем выбор пояса
+            # Уже одобрен — снова шлём сообщение после одобрения (без выбора пояса)
             user_lang = await get_user_language(user_id)
             if user_lang == "en":
-                title = "Choose your time zone:"
-                kb = get_timezone_keyboard("en")
+                setting = await get_setting("after_timezone_en")
+                base = DEFAULT_AFTER_TZ_TEXT_EN
             else:
-                title = "Выбор часового пояса:"
-                kb = get_timezone_keyboard("ru")
+                setting = await get_setting("after_timezone_ru")
+                base = DEFAULT_AFTER_TZ_TEXT_RU
 
-            await callback.message.answer(title, reply_markup=kb)
+            text = (
+                (setting["text"] if setting and setting["text"] else base)
+                .replace("{tz}", "")
+                .strip()
+            )
+            photo_id = setting["photo_file_id"] if setting else None
+
+            if photo_id:
+                await callback.bot.send_photo(chat_id=user_id, photo=photo_id, caption=text)
+            else:
+                await callback.bot.send_message(chat_id=user_id, text=text)
             await callback.answer()
             return
 
@@ -141,41 +149,3 @@ async def process_request_access(callback: CallbackQuery):
         await callback.answer("Заявка отправлена.")
     except Exception:
         await callback.answer("Ошибка. Попробуйте позже.", show_alert=True)
-
-
-@router.callback_query(F.data.startswith("tz_"))
-async def process_timezone(callback: CallbackQuery):
-    try:
-        timezone = callback.data.split("_", 1)[1]
-        user_id = callback.from_user.id
-
-        await add_user(user_id, timezone)
-
-        user_lang = await get_user_language(user_id)
-        if user_lang == "en":
-            setting = await get_setting("after_timezone_en")
-            base = DEFAULT_AFTER_TZ_TEXT_EN
-        else:
-            setting = await get_setting("after_timezone_ru")
-            base = DEFAULT_AFTER_TZ_TEXT_RU
-
-        if setting and setting["text"]:
-            text = setting["text"].replace("{tz}", timezone)
-        else:
-            text = base.format(tz=timezone)
-        photo_id = setting["photo_file_id"] if setting else None
-
-        # убираем клавиатуру выбора пояса
-        try:
-            await callback.message.edit_reply_markup(reply_markup=None)
-        except Exception:
-            pass
-
-        if photo_id:
-            await callback.message.answer_photo(photo=photo_id, caption=text)
-        else:
-            await callback.message.answer(text)
-
-        await callback.answer()
-    except Exception:
-        await callback.answer("Произошла ошибка, попробуйте ещё раз позже.", show_alert=True)
