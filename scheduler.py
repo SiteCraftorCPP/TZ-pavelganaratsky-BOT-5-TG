@@ -7,7 +7,9 @@ from database import (
     get_users,
     is_message_sent_for_user,
     mark_message_sent_for_user,
+    mark_schedule_sent,
 )
+from config import BROADCAST_CHAT_ID
 
 
 MSK_OFFSET = 3  # Москва = UTC+3
@@ -57,6 +59,14 @@ async def check_and_send_messages(bot: Bot):
         # ещё рано — пропускаем целиком (для всех пользователей)
         if now_msk < base_msk_time:
             continue
+
+        # Отправляем в общий чат один раз на сообщение расписания
+        if BROADCAST_CHAT_ID and not msg["is_sent"]:
+            try:
+                await bot.send_message(chat_id=BROADCAST_CHAT_ID, text=text)
+                await mark_schedule_sent(schedule_id)
+            except Exception as e:
+                print(f"Failed to send to broadcast chat {BROADCAST_CHAT_ID}: {e}")
 
         for user in users:
             user_id = user["user_id"]

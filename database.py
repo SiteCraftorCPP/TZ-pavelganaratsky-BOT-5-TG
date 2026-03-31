@@ -220,6 +220,15 @@ async def mark_message_sent_for_user(user_id: int, schedule_id: int):
         await db.commit()
 
 
+async def mark_schedule_sent(schedule_id: int):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute(
+            "UPDATE schedule SET is_sent = 1 WHERE id = ?",
+            (schedule_id,),
+        )
+        await db.commit()
+
+
 async def seed_march_if_needed():
     """
     Заполнить расписание на март, если таблица schedule пока пустая.

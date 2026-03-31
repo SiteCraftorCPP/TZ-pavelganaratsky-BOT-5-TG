@@ -5,6 +5,8 @@ from urllib.parse import quote
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+_raw_broadcast_chat_id = (os.getenv("BROADCAST_CHAT_ID") or "").strip()
+BROADCAST_CHAT_ID = int(_raw_broadcast_chat_id) if _raw_broadcast_chat_id else None
 
 _raw_admins = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS = {
