@@ -75,7 +75,15 @@ async def process_approve_request(callback: CallbackQuery):
     user_lang = await get_user_language(user_id)
     lang_str = (user_lang or "не выбран").upper()
 
-    # Пользователю после одобрения ничего автоматически не отправляем
+    # Уведомляем пользователя об одобрении подписки
+    try:
+        if user_lang == "en":
+            await callback.bot.send_message(chat_id=user_id, text="Subscription approved")
+        else:
+            await callback.bot.send_message(chat_id=user_id, text="Подписка одобрена")
+    except Exception:
+        await callback.answer("Не удалось отправить пользователю.", show_alert=True)
+        return
 
     # уведомляем всех админов о результате
     for admin_id in ADMIN_IDS:

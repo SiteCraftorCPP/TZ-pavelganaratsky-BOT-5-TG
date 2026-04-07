@@ -32,7 +32,6 @@ def get_admin_keyboard():
         [InlineKeyboardButton(text="📋 Сообщения рассылки", callback_data="admin_list")],
         [InlineKeyboardButton(text="➕ Добавить сообщение", callback_data="admin_add")],
         [InlineKeyboardButton(text="✏️ Приветственное сообщение", callback_data="admin_edit_welcome")],
-        [InlineKeyboardButton(text="✏️ Ответ после выбора", callback_data="admin_edit_after_tz")],
         [InlineKeyboardButton(text="🧹 Удалить все сообщения", callback_data="admin_delete_all_confirm")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
